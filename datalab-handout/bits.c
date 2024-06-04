@@ -170,12 +170,17 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  if(!(~x)) return 0;
-  int y= 0x80000000;
-  int r1=x|y;
-  int r2=~r1;
-  if(!r2) return 1;
-  return 0;
+  // 不能采用if
+  // if(!(~x)) return 0;
+  // int y= 0x80000000;
+  // int r1=x|y;
+  // int r2=~r1;
+  // if(!r2) return 1;
+  // return 0;
+  int y=(x+1)^x; // 全1
+  int y1=!(~y); // y1==1
+  // if x==-1; (x+1)^x就==x
+  return y1 & !!(x+1);
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -187,8 +192,8 @@ int isTmax(int x) {
  */
 int allOddBits(int x) {
   int x1=x&0xAAAAAAAA;
-  int x2=x1|0x55555555;
-  int res=~x2;
+  int x2=x1|0x55555555;//全1
+  int res=~x2;//
   return !res;
 }
 /* 
@@ -199,7 +204,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  
+  // 最高位1之前的数字取反
 
   return (~x+1);
 }
@@ -214,7 +219,14 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  int y=x+((~0x30)+1);// x-0x2f >=0
+  // int y1=x+((~0x3a)+1);// x-0x3a <0
+  int y2=0x39+(~x)+1; // 0x3a-x >=0
+  int a=0x80000000;
+  int r1=y&a; // 全0
+  int r2=y2&a;// 全0
+  //int res=r2+r1; // 加法没用
+  return !r1 & !r2;
 }
 /* 
  * conditional - same as x ? y : z 
@@ -224,7 +236,9 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  // 分为x=0 和 x!=0就可以讨论出来
+  int temp = ~(!x)+1;
+  return (~temp & y) | (temp & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -234,7 +248,13 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int signX=x>>31;
+  int signY=y>>31;
+  int sign = signX ^ signY; // 看符号是否相同
+  int case1 = sign & signX; //case1判断符号相异 同：0&(signX)=0 异：1&(signX)=signX 
+  int case2 = ~sign & ~((y+(~x)+1)>>31); //case1判断符号相同 ~sign=0x11111... 然后看y-x的符号
+  int res = case1 | case2;
+  return !!res;
 }
 //4
 /* 
@@ -246,7 +266,9 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  int r1=0x1^x; // ~x
+  
+  return 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
