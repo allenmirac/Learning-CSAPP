@@ -266,9 +266,13 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  int r1=0x1^x; // ~x
+  int bit16 = x | (x >> 16);
+  int bit8 = bit16 | (bit16>>8);
+  int bit4 = bit8 | (bit8 >> 4);
+  int bit2 = bit4 | (bit4 >>2);
+  int bit1 = bit2 | (bit2>>1);
   
-  return 1;
+  return (bit1&1) ^ 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -282,8 +286,23 @@ int logicalNeg(int x) {
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x) {
-  return 0;
+int howManyBits(int x) { // 理解不了
+    int b16, b8, b4, b2, b1, b0;
+    int sign = x >> 31;
+    x = (sign & ~x) | (~sign & x);
+
+    b16 = !!(x >> 16) << 4;
+    x = x >> b16;
+    b8 = !!(x >> 8) << 3;
+    x = x >> b8;
+    b4 = !!(x >> 4) << 2;
+    x = x >> b4;
+    b2 = !!(x >> 2) << 1;
+    x = x >> b2;
+    b1 = !!(x >> 1);
+    x = x >> b1;
+    b0 = x;
+    return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 //float
 /* 
@@ -298,7 +317,24 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  int exp = (uf >> 23) & 0xFF;
+    int sign = uf & (1 << 31);
+    if (exp == 0xFF) {
+        return uf;
+    }
+
+    if (exp == 0x0) {
+        return (uf << 1) | sign;
+    }
+
+    exp = exp + 1;
+    if (exp == 0xFF) {
+        return 0x7F800000 | sign;
+    }
+    else {
+        int frac = uf & 0x7FFFFF;
+        return (frac | exp << 23) | sign;
+    }
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -312,8 +348,26 @@ unsigned floatScale2(unsigned uf) {
  *   Max ops: 30
  *   Rating: 4
  */
-int floatFloat2Int(unsigned uf) {
-  return 2;
+int floatFloat2Int(unsigned uf) { 
+  int exp = (uf >> 23) & 0xFF;
+    int frac = uf & 0x7FFFFF;
+    int sign = uf & (1 << 31);  // negative 0x80000000, positive 0x0.
+    int frac1 = frac | 0x800000;  // Add the hidden 1 in front of frac
+    int biasedExp = exp - 127; // E = e - Bias, Bias = 127 = 0x7F, -bias = 0xFFFFFF81
+
+    if (exp == 0xFF) return 0x80000000u;  // if out of range, return 0x80000000
+
+    if (exp == 0x0) return 0;  // if de-norm number, means its range is (-1, 1)
+
+    if (biasedExp > 31) return 0x80000000; // [int] only 32 bits
+    else if (biasedExp < 0) return 0;
+
+    if (biasedExp > 23) frac1 <<= (biasedExp - 23); // 尾数只有23bits
+    else frac1 >>= (23 - biasedExp);
+
+    if (sign) return ~frac1 + 1;  // if negative number
+    else if (frac1 >> 31) return 0x80000000;  // if frac1 overflows, return 0x80000000;
+    else return frac1;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -329,5 +383,8 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  int exp = x + 127;
+  if (exp <= 0) return 0;
+  if (exp >= 255) return 0xff << 23;
+  return exp << 23;
 }
